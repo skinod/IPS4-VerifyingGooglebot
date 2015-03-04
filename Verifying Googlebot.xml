@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<plugin name="Verifying Googlebot" version_long="10000" version_human="1.0.0" author="Sijad aka Mr.Wosi" website="http://skinod..com" update_check="http://skinod.com/updatechk/sodverifygooglebot"><hooks><hook type="C" class="\IPS\Session\Front"><![CDATA[//<?php
+
+class hook67 extends _HOOK_CLASS_
+{
+	/**
+	 * Read Session
+	 *
+	 * @param	string	$sessionId	Session ID
+	 * @return	string
+	 */
+	public function read( $sessionId ) {
+		try
+		{
+			$parent = parent::read( $sessionId );
+	
+			/* Is this a spider? */
+			if( $this->userAgent->spider && \IPS\Settings::i()->sod_verifying_googlebot_active ) {
+				if( $this->userAgent->useragentKey == 'google' || $this->userAgent->useragentKey == 'googlemobile' ) {			
+					if(\IPS\Settings::i()->xforward_matching) {
+						$back = 1;
+						\IPS\Settings::i()->xforward_matching = false;
+					}
+	
+					$ip = \IPS\Request::i()->ipAddress();
+	
+					if(isset($back))
+						\IPS\Settings::i()->xforward_matching = 1;
+	
+					// TODO: cache host
+	
+					if( \substr(gethostbyaddr($ip), -14) == '.googlebot.com' )  {
+						 if(\IPS\Settings::i()->sod_verifying_googlebot_group) {
+						 	$this->member->member_group_id	= \IPS\Settings::i()->sod_verifying_googlebot_group;
+						 }
+					} else {
+						if( isset( $_SERVER['SERVER_PROTOCOL'] ) and \strstr( $_SERVER['SERVER_PROTOCOL'], '/1.0' ) !== false ) {
+							header( "HTTP/1.0 403 Forbidden" );
+						} else {
+							header( "HTTP/1.1 403 Forbidden" );
+						}
+						$doc = new \DOMDocument();
+						$doc->loadHTMLFile(\IPS\ROOT_PATH . '/' . \IPS\ERROR_PAGE);
+	
+						if($err = $doc->getElementById('error') AND $h1 = $err->getElementsByTagName('h1') AND $err->getElementsByTagName('h1')->length > 0 AND $cont = $doc->getElementById('content') ) {
+							$h1->item(0)->nodeValue = "Fake Googlebot Detected";
+							$cont->nodeValue = "We're sorry, but it seems you're a fake googlebot!";
+						}
+						echo $doc->saveHTML();
+						exit;
+					}
+				}
+			}
+	
+			return $parent;
+		}
+		catch ( \RuntimeException $e )
+		{
+			return call_user_func_array( 'parent::' . __FUNCTION__, func_get_args() );
+		}
+	}
+}]]></hook></hooks><settings><setting><key>sod_verifying_googlebot_active</key><default>0</default></setting><setting><key>sod_verifying_googlebot_group</key><default>2</default></setting></settings><settingsCode><![CDATA[//<?php
+
+$form->add( new \IPS\Helpers\Form\YesNo( 'sod_verifying_googlebot_active', \IPS\Settings::i()->sod_verifying_googlebot_active ) );
+$form->add( new \IPS\Helpers\Form\Select( 'sod_verifying_googlebot_group', \IPS\Settings::i()->sod_verifying_googlebot_group, FALSE, array( 'options' => \IPS\Member\Group::groups(), 'parse' => 'normal', 'multiple' => false ) ) );
+
+if ( $values = $form->values() )
+{
+	$form->saveAsSettings();
+	return TRUE;
+}
+
+return $form;]]></settingsCode><tasks/><htmlFiles/><cssFiles/><jsFiles/><resourcesFiles/><lang><word key="sod_verifying_googlebot_active" js="0">Active Verifying Googlebot</word><word key="sod_verifying_googlebot_group" js="0">Googlebot User Group</word></lang><versions><version long="10000" human="1.0.0"><![CDATA[//<?php
+
+
+/* To prevent PHP errors (extending class does not exist) revealing path */
+if ( !defined( '\IPS\SUITE_UNIQUE_KEY' ) )
+{
+	header( ( isset( $_SERVER['SERVER_PROTOCOL'] ) ? $_SERVER['SERVER_PROTOCOL'] : 'HTTP/1.0' ) . ' 403 Forbidden' );
+	exit;
+}
+
+/**
+ * Install Code
+ */
+class ips_plugins_setup_install
+{
+	/**
+	 * ...
+	 *
+	 * @return	array	If returns TRUE, upgrader will proceed to next step. If it returns any other value, it will set this as the value of the 'extra' GET parameter and rerun this step (useful for loops)
+	 */
+	public function step1()
+	{
+		
+	}
+	
+	// You can create as many additional methods (step2, step3, etc.) as is necessary.
+	// Each step will be executed in a new HTTP request
+}]]></version></versions></plugin>
